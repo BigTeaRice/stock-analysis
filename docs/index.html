@@ -1,0 +1,1083 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能股票分析工具 - GitHub部署版</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #2c3e50, #3498db);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        
+        .agent-container {
+            display: flex;
+            min-height: 600px;
+        }
+        
+        .chat-panel {
+            width: 350px;
+            background: #f8f9fa;
+            border-right: 1px solid #e9ecef;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .chat-header {
+            padding: 15px;
+            background: #2c3e50;
+            color: white;
+            text-align: center;
+        }
+        
+        .chat-messages {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .message {
+            margin-bottom: 15px;
+            padding: 10px 15px;
+            border-radius: 18px;
+            max-width: 80%;
+            word-wrap: break-word;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .user-message {
+            background: #3498db;
+            color: white;
+            margin-left: auto;
+            border-bottom-right-radius: 5px;
+        }
+        
+        .agent-message {
+            background: #ecf0f1;
+            margin-right: auto;
+            border-bottom-left-radius: 5px;
+        }
+        
+        .suggestion-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding: 15px;
+            background: white;
+            border-top: 1px solid #e9ecef;
+        }
+        
+        .chip {
+            padding: 8px 15px;
+            background: #ecf0f1;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: background 0.3s;
+            font-size: 0.9em;
+        }
+        
+        .chip:hover {
+            background: #3498db;
+            color: white;
+        }
+        
+        .chat-input {
+            padding: 15px;
+            border-top: 1px solid #e9ecef;
+            display: flex;
+        }
+        
+        .chat-input input {
+            flex: 1;
+            padding: 10px 15px;
+            border: 1px solid #ced4da;
+            border-radius: 20px;
+            margin-right: 10px;
+        }
+        
+        .chat-input button {
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            padding: 10px 20px;
+            cursor: pointer;
+        }
+        
+        .analysis-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .controls {
+            background: #f8f9fa;
+            padding: 20px;
+            border-bottom: 1px solid #e9ecef;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        
+        .control-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .control-group label {
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #495057;
+        }
+        
+        select, input, button {
+            padding: 10px 15px;
+            border: 1px solid #ced4da;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        button:hover {
+            background: #2980b9;
+        }
+        
+        .chart-container {
+            padding: 20px;
+            height: 500px;
+            position: relative;
+        }
+        
+        #stockChart {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .data-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+        
+        .panel-section {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .panel-section h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #3498db;
+        }
+        
+        .data-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+            padding: 5px 0;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .positive { color: #e74c3c; font-weight: 600; }
+        .negative { color: #27ae60; font-weight: 600; }
+        .neutral { color: #f39c12; font-weight: 600; }
+        
+        .footer {
+            text-align: center;
+            padding: 20px;
+            background: #2c3e50;
+            color: white;
+            font-size: 0.9em;
+        }
+        
+        .loading {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 1000;
+            background: rgba(255,255,255,0.9);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.2);
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .api-status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            text-align: center;
+            font-weight: 600;
+        }
+        
+        .status-success { background: #d4edda; color: #155724; }
+        .status-error { background: #f8d7da; color: #721c24; }
+        
+        @media (max-width: 1200px) {
+            .agent-container {
+                flex-direction: column;
+            }
+            
+            .chat-panel {
+                width: 100%;
+                border-right: none;
+                border-bottom: 1px solid #e9ecef;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .chart-container {
+                height: 400px;
+            }
+            
+            .controls {
+                grid-template-columns: 1fr;
+            }
+            
+            .data-panel {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>智能股票分析工具</h1>
+            <p>GitHub Pages部署版 - 集成真实API数据</p>
+        </div>
+        
+        <div class="agent-container">
+            <div class="chat-panel">
+                <div class="chat-header">
+                    <h3>智能分析助手</h3>
+                </div>
+                <div class="chat-messages" id="chatMessages">
+                    <div class="message agent-message">
+                        您好！我是智能股票分析助手，可以帮您分析股票数据、计算技术指标并提供投资建议。请告诉我您想分析的股票代码。
+                    </div>
+                </div>
+                <div class="suggestion-chips">
+                    <div class="chip" onclick="suggestionAction('AAPL')">分析 AAPL</div>
+                    <div class="chip" onclick="suggestionAction('000001')">分析 000001</div>
+                    <div class="chip" onclick="suggestionAction('TSLA')">分析 TSLA</div>
+                    <div class="chip" onclick="suggestionAction('600519')">分析 600519</div>
+                </div>
+                <div class="chat-input">
+                    <input type="text" id="userInput" placeholder="输入股票代码或问题...">
+                    <button onclick="sendMessage()">发送</button>
+                </div>
+            </div>
+            
+            <div class="analysis-panel">
+                <div class="controls">
+                    <div class="control-group">
+                        <label for="dataSource">数据源</label>
+                        <select id="dataSource">
+                            <option value="yfinance">yfinance (国际股票)</option>
+                            <option value="akshare">AkShare (A股数据)</option>
+                            <option value="simulated">模拟数据</option>
+                        </select>
+                    </div>
+                    
+                    <div class="control-group">
+                        <label for="timeRange">时间范围</label>
+                        <select id="timeRange">
+                            <option value="1d">1日</option>
+                            <option value="5d">5日</option>
+                            <option value="1mo">1月</option>
+                            <option value="3mo" selected>3月</option>
+                            <option value="6mo">6月</option>
+                            <option value="1y">1年</option>
+                        </select>
+                    </div>
+                    
+                    <div class="control-group">
+                        <label for="stockCode">股票代码</label>
+                        <input type="text" id="stockCode" placeholder="如: AAPL, 000001" value="AAPL">
+                    </div>
+                    
+                    <button onclick="loadStockData()">分析股票</button>
+                </div>
+                
+                <div id="apiStatus" class="api-status"></div>
+                
+                <div class="chart-container">
+                    <div class="loading" id="loading">
+                        <div class="spinner"></div>
+                        <div>加载数据中...</div>
+                    </div>
+                    <div id="stockChart"></div>
+                </div>
+                
+                <div class="data-panel">
+                    <div class="panel-section">
+                        <h3>实时行情</h3>
+                        <div class="data-item">
+                            <span>股票代码:</span>
+                            <span id="symbol">-</span>
+                        </div>
+                        <div class="data-item">
+                            <span>最新价:</span>
+                            <span id="currentPrice">-</span>
+                        </div>
+                        <div class="data-item">
+                            <span>涨跌幅:</span>
+                            <span id="changePercent">-</span>
+                        </div>
+                        <div class="data-item">
+                            <span>开盘价:</span>
+                            <span id="openPrice">-</span>
+                        </div>
+                        <div class="data-item">
+                            <span>最高价:</span>
+                            <span id="highPrice">-</span>
+                        </div>
+                        <div class="data-item">
+                            <span>最低价:</span>
+                            <span id="lowPrice">-</span>
+                        </div>
+                        <div class="data-item">
+                            <span>成交量:</span>
+                            <span id="volume">-</span>
+                        </div>
+                    </div>
+                    
+                    <div class="panel-section">
+                        <h3>技术指标</h3>
+                        <div class="data-item">
+                            <span>MA5:</span>
+                            <span id="ma5">-</span>
+                        </div>
+                        <div class="data-item">
+                            <span>MA10:</span>
+                            <span id="ma10">-</span>
+                        </div>
+                        <div class="data-item">
+                            <span>MA20:</span>
+                            <span id="ma20">-</span>
+                        </div>
+                        <div class="data-item">
+                            <span>RSI (14):</span>
+                            <span id="rsi">-</span>
+                        </div>
+                        <div class="data-item">
+                            <span>波动率:</span>
+                            <span id="volatility">-</span>
+                        </div>
+                    </div>
+                    
+                    <div class="panel-section">
+                        <h3>AI分析建议</h3>
+                        <div class="data-item">
+                            <span>趋势判断:</span>
+                            <span id="trend">-</span>
+                        </div>
+                        <div class="data-item">
+                            <span>风险等级:</span>
+                            <span id="risk">-</span>
+                        </div>
+                        <div class="data-item">
+                            <span>建议操作:</span>
+                            <span id="action">-</span>
+                        </div>
+                        <div class="data-item">
+                            <span>置信度:</span>
+                            <span id="confidence">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>© 2024 智能股票分析工具 | 数据仅供参考，投资有风险</p>
+            <p>最后更新: <span id="updateTime">-</span></p>
+        </div>
+    </div>
+
+    <script>
+        // 股票分析工具类
+        class StockAnalysisAgent {
+            constructor() {
+                this.chart = null;
+                this.currentData = [];
+                this.conversationHistory = [];
+                this.apiBaseUrl = 'https://your-heroku-app.herokuapp.com'; // 替换为实际的Heroku应用URL
+                this.init();
+            }
+            
+            init() {
+                this.initChart();
+                this.addEventListeners();
+                this.addWelcomeMessage();
+            }
+            
+            initChart() {
+                this.chart = echarts.init(document.getElementById('stockChart'));
+                
+                const option = {
+                    animation: false,
+                    legend: {
+                        data: ['K线', 'MA5', 'MA10', 'MA20', '成交量'],
+                        inactiveColor: '#777',
+                        textStyle: { color: '#333' }
+                    },
+                    tooltip: {
+                        trigger: 'axis',
+                        axisPointer: { type: 'cross' },
+                        borderWidth: 1,
+                        borderColor: '#ccc',
+                        padding: 10,
+                        textStyle: { color: '#333' }
+                    },
+                    axisPointer: {
+                        link: [{ xAxisIndex: 'all' }],
+                        label: { backgroundColor: '#777' }
+                    },
+                    grid: [
+                        {
+                            left: '10%',
+                            right: '8%',
+                            top: '10%',
+                            height: '50%'
+                        },
+                        {
+                            left: '10%',
+                            right: '8%',
+                            top: '68%',
+                            height: '16%'
+                        }
+                    ],
+                    xAxis: [
+                        {
+                            type: 'category',
+                            data: [],
+                            scale: true,
+                            boundaryGap: false,
+                            axisLine: { onZero: false },
+                            splitLine: { show: false },
+                            min: 'dataMin',
+                            max: 'dataMax'
+                        },
+                        {
+                            type: 'category',
+                            gridIndex: 1,
+                            data: [],
+                            scale: true,
+                            boundaryGap: false,
+                            axisLine: { onZero: false },
+                            axisTick: { show: false },
+                            splitLine: { show: false },
+                            axisLabel: { show: false },
+                            min: 'dataMin',
+                            max: 'dataMax'
+                        }
+                    ],
+                    yAxis: [
+                        {
+                            scale: true,
+                            splitArea: { show: true }
+                        },
+                        {
+                            scale: true,
+                            gridIndex: 1,
+                            splitNumber: 2,
+                            axisLabel: { show: false },
+                            axisLine: { show: false },
+                            axisTick: { show: false },
+                            splitLine: { show: false }
+                        }
+                    ],
+                    dataZoom: [
+                        {
+                            type: 'inside',
+                            xAxisIndex: [0, 1],
+                            start: 50,
+                            end: 100
+                        }
+                    ],
+                    series: [
+                        {
+                            name: 'K线',
+                            type: 'candlestick',
+                            data: [],
+                            itemStyle: {
+                                color: '#ef232a',
+                                color0: '#14b143',
+                                borderColor: '#ef232a',
+                                borderColor0: '#14b143'
+                            }
+                        },
+                        {
+                            name: 'MA5',
+                            type: 'line',
+                            data: [],
+                            lineStyle: { 
+                                width: 2,
+                                color: '#FF6B6B'
+                            },
+                            symbol: 'none'
+                        },
+                        {
+                            name: 'MA10',
+                            type: 'line',
+                            data: [],
+                            lineStyle: { 
+                                width: 2,
+                                color: '#4ECDC4'
+                            },
+                            symbol: 'none'
+                        },
+                        {
+                            name: 'MA20',
+                            type: 'line',
+                            data: [],
+                            lineStyle: { 
+                                width: 2,
+                                color: '#45B7D1'
+                            },
+                            symbol: 'none'
+                        },
+                        {
+                            name: '成交量',
+                            type: 'bar',
+                            xAxisIndex: 1,
+                            yAxisIndex: 1,
+                            data: [],
+                            itemStyle: {
+                                color: function(params) {
+                                    const data = this.currentData[params.dataIndex];
+                                    return data && data[1] > data[0] ? '#ef232a' : '#14b143';
+                                }.bind(this)
+                            }
+                        }
+                    ]
+                };
+                
+                this.chart.setOption(option);
+                window.addEventListener('resize', () => this.chart.resize());
+            }
+            
+            addEventListeners() {
+                document.getElementById('stockCode').addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') this.loadStockData();
+                });
+                
+                document.getElementById('userInput').addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') this.sendMessage();
+                });
+            }
+            
+            addWelcomeMessage() {
+                this.addMessage("您好！我是智能股票分析助手，可以帮您分析股票数据、计算技术指标并提供投资建议。请告诉我您想分析的股票代码。", "agent");
+            }
+            
+            addMessage(message, sender) {
+                const chatMessages = document.getElementById('chatMessages');
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${sender}-message`;
+                messageDiv.textContent = message;
+                chatMessages.appendChild(messageDiv);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+                
+                // 保存对话历史
+                this.conversationHistory.push({
+                    sender: sender,
+                    message: message,
+                    timestamp: new Date()
+                });
+            }
+            
+            // 通过API获取yfinance数据
+            async fetchYFinanceData(symbol, period) {
+                const statusDiv = document.getElementById('apiStatus');
+                statusDiv.className = 'api-status status-success';
+                statusDiv.innerHTML = '🔗🔗 通过yfinance API获取数据...';
+                
+                try {
+                    const response = await fetch(`${this.apiBaseUrl}/api/yfinance/${symbol}?period=${period}`);
+                    if (!response.ok) {
+                        throw new Error(`HTTP错误! 状态: ${response.status}`);
+                    }
+                    
+                    const data = await response.json();
+                    
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    
+                    return data;
+                } catch (error) {
+                    console.error('yfinance数据获取失败:', error);
+                    statusDiv.className = 'api-status status-error';
+                    statusDiv.innerHTML = '❌❌ yfinance数据获取失败，使用模拟数据';
+                    
+                    // 回退到模拟数据
+                    return this.generateStockData(symbol, 150, 66, period, 'yfinance');
+                }
+            }
+            
+            // 通过API获取AkShare数据
+            async fetchAkShareData(symbol, period) {
+                const statusDiv = document.getElementById('apiStatus');
+                statusDiv.className = 'api-status status-success';
+                statusDiv.innerHTML = '🔗🔗 通过AkShare API获取A股数据...';
+                
+                try {
+                    const response = await fetch(`${this.apiBaseUrl}/api/akshare/${symbol}?period=${period}`);
+                    if (!response.ok) {
+                        throw new Error(`HTTP错误! 状态: ${response.status}`);
+                    }
+                    
+                    const data = await response.json();
+                    
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    
+                    return data;
+                } catch (error) {
+                    console.error('AkShare数据获取失败:', error);
+                    statusDiv.className = 'api-status status-error';
+                    statusDiv.innerHTML = '❌❌ AkShare数据获取失败，使用模拟数据';
+                    
+                    // 回退到模拟数据
+                    return this.generateStockData(symbol, 50, 66, period, 'akshare');
+                }
+            }
+            
+            // 生成模拟股票数据
+            generateStockData(symbol, basePrice, dataPoints, period, source) {
+                const data = [];
+                let current = basePrice;
+                const baseTime = new Date();
+                let timeInterval;
+                
+                if (period === '1d') {
+                    timeInterval = 1;
+                } else {
+                    timeInterval = 1440; // 天级数据
+                }
+                
+                for (let i = 0; i < dataPoints; i++) {
+                    const volatility = source === 'akshare' ? 0.03 : 0.02;
+                    const change = (Math.random() - 0.5) * volatility * current;
+                    const open = current;
+                    const close = open + change;
+                    const high = Math.max(open, close) + Math.random() * volatility * current;
+                    const low = Math.min(open, close) - Math.random() * volatility * current;
+                    const volume = Math.floor(Math.random() * 10000000) + 1000000;
+                    
+                    const timestamp = new Date(baseTime.getTime() - (dataPoints - i) * timeInterval * 60 * 1000);
+                    let dateStr;
+                    
+                    if (period === '1d') {
+                        dateStr = timestamp.toLocaleTimeString('zh-CN', { 
+                            hour: '2-digit', 
+                            minute: '2-digit',
+                            hour12: false 
+                        });
+                    } else {
+                        dateStr = timestamp.toLocaleDateString('zh-CN');
+                    }
+                    
+                    data.push({
+                        date: dateStr,
+                        open: parseFloat(open.toFixed(2)),
+                        high: parseFloat(high.toFixed(2)),
+                        low: parseFloat(low.toFixed(2)),
+                        close: parseFloat(close.toFixed(2)),
+                        volume: volume,
+                        timestamp: timestamp.getTime()
+                    });
+                    
+                    current = close;
+                }
+                
+                return {
+                    symbol: symbol,
+                    source: source,
+                    period: period,
+                    data: data,
+                    current: data[data.length - 1],
+                    info: {
+                        currency: source === 'akshare' ? 'CNY' : 'USD',
+                        exchange: source === 'akshare' ? 'SZSE/SSE' : 'NASDAQ/NYSE'
+                    }
+                };
+            }
+            
+            // 计算技术指标
+            calculateIndicators(data) {
+                const closes = data.map(d => d.close);
+                const highs = data.map(d => d.high);
+                const lows = data.map(d => d.low);
+                const volumes = data.map(d => d.volume);
+                
+                // 移动平均线
+                const ma5 = this.calculateMA(closes, 5);
+                const ma10 = this.calculateMA(closes, 10);
+                const ma20 = this.calculateMA(closes, 20);
+                
+                // RSI
+                const rsi = this.calculateRSI(closes, 14);
+                
+                // 波动率
+                const volatility = this.calculateVolatility(closes);
+                
+                return { 
+                    ma5, ma10, ma20, rsi, volumes, volatility
+                };
+            }
+            
+            calculateMA(data, dayCount) {
+                const result = [];
+                for (let i = 0; i < data.length; i++) {
+                    if (i < dayCount - 1) {
+                        result.push(null);
+                        continue;
+                    }
+                    let sum = 0;
+                    for (let j = 0; j < dayCount; j++) {
+                        sum += data[i - j];
+                    }
+                    result.push(+(sum / dayCount).toFixed(2));
+                }
+                return result;
+            }
+            
+            calculateRSI(data, period) {
+                const gains = [];
+                const losses = [];
+                
+                for (let i = 1; i < data.length; i++) {
+                    const difference = data[i] - data[i - 1];
+                    gains.push(Math.max(difference, 0));
+                    losses.push(Math.max(-difference, 0));
+                }
+                
+                const rsi = [];
+                for (let i = period; i < data.length; i++) {
+                    const avgGain = gains.slice(i - period, i).reduce((a, b) => a + b) / period;
+                    const avgLoss = losses.slice(i - period, i).reduce((a, b) => a + b) / period;
+                    
+                    if (avgLoss === 0) {
+                        rsi.push(100);
+                    } else {
+                        const rs = avgGain / avgLoss;
+                        rsi.push(+(100 - (100 / (1 + rs))).toFixed(2));
+                    }
+                }
+                
+                return Array(period).fill(null).concat(rsi);
+            }
+            
+            calculateVolatility(data) {
+                const returns = [];
+                for (let i = 1; i < data.length; i++) {
+                    const ret = (data[i] - data[i - 1]) / data[i - 1];
+                    returns.push(ret);
+                }
+                const variance = returns.reduce((sum, ret) => sum + ret * ret, 0) / returns.length;
+                return Math.sqrt(variance) * 100; // 年化波动率
+            }
+            
+            // 更新图表
+            updateChart(data, indicators, period) {
+                const dates = data.map(d => d.date);
+                const kLineData = data.map(d => [d.open, d.close, d.low, d.high]);
+                const volumes = data.map((d, i) => [i, d.volume, d.close > d.open ? 1 : -1]);
+                
+                const option = {
+                    xAxis: [{ data: dates }, { data: dates, gridIndex: 1 }],
+                    series: [
+                        { data: kLineData },
+                        { data: indicators.ma5 },
+                        { data: indicators.ma10 },
+                        { data: indicators.ma20 },
+                        { data: volumes }
+                    ]
+                };
+                
+                this.chart.setOption(option);
+            }
+            
+            // 更新数据面板
+            updateDataPanel(stockData, indicators) {
+                const current = stockData.current;
+                const change = current.close - current.open;
+                const changePercent = ((change / current.open) * 100).toFixed(2);
+                
+                document.getElementById('symbol').textContent = stockData.symbol;
+                document.getElementById('currentPrice').textContent = current.close.toFixed(2);
+                document.getElementById('changePercent').textContent = `${change >= 0 ? '+' : ''}${changePercent}%`;
+                document.getElementById('changePercent').className = change >= 0 ? 'positive' : 'negative';
+                document.getElementById('openPrice').textContent = current.open.toFixed(2);
+                document.getElementById('highPrice').textContent = current.high.toFixed(2);
+                document.getElementById('lowPrice').textContent = current.low.toFixed(2);
+                document.getElementById('volume').textContent = current.volume.toLocaleString();
+                
+                const lastIndex = indicators.ma5.length - 1;
+                document.getElementById('ma5').textContent = indicators.ma5[lastIndex] || '-';
+                document.getElementById('ma10').textContent = indicators.ma10[lastIndex] || '-';
+                document.getElementById('ma20').textContent = indicators.ma20[lastIndex] || '-';
+                document.getElementById('rsi').textContent = indicators.rsi[lastIndex] || '-';
+                document.getElementById('volatility').textContent = indicators.volatility.toFixed(2) + '%';
+                
+                // 生成AI分析建议
+                this.generateAnalysisAdvice(stockData, indicators);
+                
+                document.getElementById('updateTime').textContent = new Date().toLocaleString();
+            }
+            
+            // 生成AI分析建议
+            generateAnalysisAdvice(stockData, indicators) {
+                const current = stockData.current;
+                const change = current.close - current.open;
+                const rsi = indicators.rsi[indicators.rsi.length - 1];
+                const ma5 = indicators.ma5[indicators.ma5.length - 1];
+                const ma20 = indicators.ma20[indicators.ma20.length - 1];
+                
+                // 趋势判断
+                let trend = "震荡";
+                if (ma5 > ma20 && change > 0) {
+                    trend = "上涨";
+                } else if (ma5 < ma20 && change < 0) {
+                    trend = "下跌";
+                }
+                
+                // 风险等级
+                let risk = "中等";
+                if (indicators.volatility > 5) {
+                    risk = "高";
+                } else if (indicators.volatility < 2) {
+                    risk = "低";
+                }
+                
+                // 建议操作
+                let action = "持有";
+                if (rsi < 30 && change > 0) {
+                    action = "买入";
+                } else if (rsi > 70 && change < 0) {
+                    action = "卖出";
+                }
+                
+                // 置信度
+                const confidence = Math.min(90, Math.max(60, 100 - Math.abs(rsi - 50) / 2)).toFixed(0) + '%';
+                
+                document.getElementById('trend').textContent = trend;
+                document.getElementById('risk').textContent = risk;
+                document.getElementById('action').textContent = action;
+                document.getElementById('confidence').textContent = confidence;
+            }
+            
+            // 加载股票数据
+            async loadStockData() {
+                const source = document.getElementById('dataSource').value;
+                const symbol = document.getElementById('stockCode').value.toUpperCase();
+                const period = document.getElementById('timeRange').value;
+                
+                if (!symbol) {
+                    this.addMessage("请输入股票代码", "agent");
+                    return;
+                }
+                
+                this.addMessage(`正在分析 ${symbol}，使用${this.getDataSourceName(source)}，时间范围：${this.getTimeRangeName(period)}`, "user");
+                
+                document.getElementById('loading').style.display = 'block';
+                
+                try {
+                    let stockData;
+                    
+                    if (source === 'yfinance') {
+                        stockData = await this.fetchYFinanceData(symbol, period);
+                    } else if (source === 'akshare') {
+                        stockData = await this.fetchAkShareData(symbol, period);
+                    } else {
+                        stockData = this.generateStockData(symbol, 150, 66, period, 'simulated');
+                    }
+                    
+                    this.currentData = stockData.data;
+                    const indicators = this.calculateIndicators(stockData.data);
+                    
+                    this.updateChart(stockData.data, indicators, period);
+                    this.updateDataPanel(stockData, indicators);
+                    
+                    document.getElementById('apiStatus').className = 'api-status status-success';
+                    document.getElementById('apiStatus').innerHTML = '✅ 数据分析完成';
+                    
+                    this.addMessage(`已完成对 ${symbol} 的分析。当前价格: ${stockData.current.close.toFixed(2)}，涨跌幅: ${((stockData.current.close - stockData.current.open) / stockData.current.open * 100).toFixed(2)}%`, "agent");
+                    
+                } catch (error) {
+                    console.error('加载数据失败:', error);
+                    document.getElementById('apiStatus').className = 'api-status status-error';
+                    document.getElementById('apiStatus').innerHTML = '❌❌ 数据加载失败: ' + error.message;
+                    
+                    this.addMessage(`分析 ${symbol} 时出现错误: ${error.message}`, "agent");
+                } finally {
+                    document.getElementById('loading').style.display = 'none';
+                }
+            }
+            
+            getDataSourceName(source) {
+                const names = {
+                    'yfinance': 'yfinance API',
+                    'akshare': 'AkShare API',
+                    'simulated': '模拟数据'
+                };
+                return names[source] || source;
+            }
+            
+            getTimeRangeName(range) {
+                const names = {
+                    '1d': '1日',
+                    '5d': '5日',
+                    '1mo': '1月',
+                    '3mo': '3月',
+                    '6mo': '6月',
+                    '1y': '1年'
+                };
+                return names[range] || range;
+            }
+            
+            // 发送消息
+            sendMessage() {
+                const input = document.getElementById('userInput');
+                const message = input.value.trim();
+                
+                if (!message) return;
+                
+                this.addMessage(message, "user");
+                input.value = '';
+                
+                // 处理消息
+                this.processMessage(message);
+            }
+            
+            processMessage(message) {
+                const lowerMessage = message.toLowerCase();
+                
+                if (lowerMessage.includes('帮助') || lowerMessage.includes('怎么用')) {
+                    this.addMessage("我可以帮您分析股票数据、计算技术指标、提供投资建议。请告诉我股票代码或您想了解的内容。", "agent");
+                } else if (lowerMessage.includes('谢谢') || lowerMessage.includes('感谢')) {
+                    this.addMessage("不客气！如果有任何问题，请随时问我。", "agent");
+                } else if (lowerMessage.includes('分析') || lowerMessage.includes('查看')) {
+                    // 提取股票代码
+                    const match = message.match(/([A-Z]{1,5}|\d{6})/);
+                    if (match) {
+                        const symbol = match[0];
+                        document.getElementById('stockCode').value = symbol;
+                        this.loadStockData();
+                    } else {
+                        this.addMessage("请提供股票代码，例如：分析 AAPL 或 查看 000001", "agent");
+                    }
+                } else if (lowerMessage.includes('技术指标') || lowerMessage.includes('指标')) {
+                    this.addMessage("技术指标是分析股票走势的重要工具，包括：移动平均线(MA)、相对强弱指数(RSI)、布林带等。我可以为您计算这些指标。", "agent");
+                } else if (lowerMessage.includes('建议') || lowerMessage.includes('操作')) {
+                    this.addMessage("基于技术分析，我可以提供买入、卖出或持有的建议。请先分析一只股票获取具体建议。", "agent");
+                } else {
+                    this.addMessage("我主要专注于股票数据分析。您可以告诉我股票代码进行分析，或询问关于技术指标的问题。", "agent");
+                }
+            }
+        }
+        
+        // 全局函数
+        function suggestionAction(action) {
+            if (action === 'AAPL' || action === '000001' || action === 'TSLA' || action === '600519') {
+                document.getElementById('stockCode').value = action;
+                stockAgent.loadStockData();
+            } else if (action === '技术指标') {
+                stockAgent.addMessage("技术指标包括：移动平均线(MA)、相对强弱指数(RSI)、布林带、MACD等。", "agent");
+            } else if (action === '投资建议') {
+                stockAgent.addMessage("投资建议基于技术分析和市场趋势。请先分析一只股票获取具体建议。", "agent");
+            }
+        }
+        
+        function sendMessage() {
+            stockAgent.sendMessage();
+        }
+        
+        function loadStockData() {
+            stockAgent.loadStockData();
+        }
+        
+        // 初始化智能体
+        let stockAgent;
+        document.addEventListener('DOMContentLoaded', function() {
+            stockAgent = new StockAnalysisAgent();
+        });
+    </script>
+</body>
+</html>
