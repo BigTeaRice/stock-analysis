@@ -5,7 +5,7 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# 关键权限：允许 OIDC 领取临时令牌，允许写 Pages
+# 权限：允许写入 Pages 与领取 OIDC 令牌
 permissions:
   contents: read
   pages: write
@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # 1. 矩阵构建
+  # 1. 矩阵构建（Node 18 & 20）
   build:
     runs-on: ubuntu-latest
     strategy:
@@ -33,10 +33,10 @@ jobs:
 
       - name: Install & Build
         run: |
-          npm ci
+          npm install   # 不需要 package-lock.json
           npm run build
 
-      # 把矩阵产物分别保存（可选，留档）
+      # 可选：保留矩阵产物
       - name: Upload dist for node ${{ matrix.node }}
         uses: actions/upload-artifact@v4
         with:
@@ -44,7 +44,7 @@ jobs:
           path: dist/
           retention-days: 1
 
-  # 2. 部署阶段：只取 Node 18 的产物发布
+  # 2. 部署阶段：取 Node 18 的产物发布
   deploy:
     needs: build
     runs-on: ubuntu-latest
@@ -55,9 +55,8 @@ jobs:
           name: dist-node18
           path: _site/
 
-      # 官方封装：自动命名 artifact = github-pages
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v3   # 自动命名 github-pages
         with:
           path: _site/
 
