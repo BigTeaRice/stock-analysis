@@ -1,76 +1,65 @@
-name: Generate Stock Charts and Deploy to Pages
-
-on:
-  schedule:
-    - cron: '0 2 * * *'  # 每天 UTC 02:00 執行
-  push:
-    branches:
-      - main
-
-jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
-
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.10'
-
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-
-    - name: Run stock analysis script
-      run: python stock_analysis_github.py
-
-    - name: Upload generated images as artifacts
-      uses: actions/upload-artifact@v3
-      with:
-        name: stock-charts
-        path: docs/*.png
-
-    - name: Deploy to GitHub Pages
-      uses: peaceiris/actions-gh-pages@v3
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./docsname: build-and-deploy
+name: build-and-deploy
 
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+
+# 关键权限：允许 OIDC 领取临时令牌，允许写 Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
 
 jobs:
+  # 1. 矩阵构建
   build:
     runs-on: ubuntu-latest
     strategy:
       matrix:
         node: [18, 20]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
-      - run: npm ci
-      - run: npm run build
-      - uses: actions/upload-artifact@v4
+
+      - name: Install & Build
+        run: |
+          npm ci
+          npm run build
+
+      # 把矩阵产物分别保存（可选，留档）
+      - name: Upload dist for node ${{ matrix.node }}
+        uses: actions/upload-artifact@v4
         with:
           name: dist-node${{ matrix.node }}
           path: dist/
+          retention-days: 1
 
+  # 2. 部署阶段：只取 Node 18 的产物发布
   deploy:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - name: Download Node 18 artifact
+        uses: actions/download-artifact@v4
         with:
-          pattern: dist-node*
-          merge-multiple: true   # 把矩阵产物合并到同目录
-          path: dist/
-      - run: ls -l dist/
-      # … 真正部署命令 …
+          name: dist-node18
+          path: _site/
+
+      # 官方封装：自动命名 artifact = github-pages
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site/
+
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4
