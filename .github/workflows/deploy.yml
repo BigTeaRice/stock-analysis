@@ -1,3 +1,5 @@
+# 完整可用模板 —— 把前端代码放在仓库根目录下（package.json 就在根目录）
+# 如果代码不在根目录，请把 working-directory 和 path 改成真实路径即可
 name: build-and-deploy
 
 on:
@@ -30,7 +32,6 @@ jobs:
           node-version: ${{ matrix.node }}
 
       - name: Install & Build
-        working-directory: frontend   # ← 改成你的目录
         run: |
           npm install
           npm run build
@@ -39,7 +40,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: dist-node${{ matrix.node }}
-          path: frontend/dist/       # ← 产物目录
+          path: dist/               # 构建输出目录（相对仓库根）
           retention-days: 1
 
   deploy:
@@ -53,7 +54,7 @@ jobs:
           path: _site/
 
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v3   # 自动命名 github-pages
         with:
           path: _site/
 
