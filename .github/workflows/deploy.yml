@@ -27,7 +27,7 @@ jobs:
           node-version: 18
 
       - name: Install & Build
-        working-directory: frontend      # 子目录
+        working-directory: frontend
         run: |
           npm install
           npm run build
@@ -35,11 +35,15 @@ jobs:
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: frontend/dist/           # 产物目录
+          path: frontend/dist/   # 构建产物目录
 
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Deploy to GitHub Pages
+        id: deployment
         uses: actions/deploy-pages@v4
