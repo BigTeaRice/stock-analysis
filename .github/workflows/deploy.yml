@@ -1,5 +1,3 @@
-# 完整可用模板 —— 把前端代码放在仓库根目录下（package.json 就在根目录）
-# 如果代码不在根目录，请把 working-directory 和 path 改成真实路径即可
 name: build-and-deploy
 
 on:
@@ -19,9 +17,6 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node: [18, 20]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -29,34 +24,35 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node }}
+          node-version: 18
 
-      - name: Install & Build
+      # 一键定位、安装、构建
+      - name: Auto-find & Build
         run: |
+          # 找到第一个 package.json
+          DIR=$(find . -name package.json -not -path "*/node_modules/*" -exec dirname {} \; | head -n1)
+          echo ">>> package.json located in: $DIR"
+          cd "$DIR"
+
           npm install
           npm run build
 
-      - name: Upload dist for node ${{ matrix.node }}
-        uses: actions/upload-artifact@v4
+          # 把常见产物目录合并到 _site
+          mkdir -p $GITHUB_WORKSPACE/_site
+          cp -r dist/*   $GITHUB_WORKSPACE/_site/ 2>/dev/null || \
+          cp -r build/*  $GITHUB_WORKSPACE/_site/ 2>/dev/null || \
+          cp -r .next/out/* $GITHUB_WORKSPACE/_site/ 2>/dev/null || \
+          echo ">>> No standard out-dir found, copying whole DIR" && \
+          cp -r ./* $GITHUB_WORKSPACE/_site/ 2>/dev/null || true
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          name: dist-node${{ matrix.node }}
-          path: dist/               # 构建输出目录（相对仓库根）
-          retention-days: 1
+          path: _site/
 
   deploy:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - name: Download Node 18 artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: dist-node18
-          path: _site/
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3   # 自动命名 github-pages
-        with:
-          path: _site/
-
       - name: Deploy to GitHub Pages
         uses: actions/deploy-pages@v4
